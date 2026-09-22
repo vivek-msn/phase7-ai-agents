@@ -30,7 +30,7 @@ calculator_tool = types.FunctionDeclaration(
                     ),
                     "operation": types.Schema(
                         type="STRING",
-                        description="Operation: add,substract, multiply, or divide"
+                        description="Operation: add,substract, multiply, divide, or percentage"
                     ),
                 },
                 required=["a", "b", "operation"],
@@ -62,7 +62,7 @@ tools = types.Tool(
 )
 
 # User's question
-user_question = "What is 25 multiplied by 40?"
+user_question = "what is 20% of 100?"
 
 # Start conversation with the user message
 contents = [
@@ -95,50 +95,61 @@ while True:
     # Check if Gemini wants to use a tool
     if response.function_calls:
 
-        function_call = response.function_calls[0]
-
-        print("Tool requested:", function_call.name)
-        print("Arguments:", function_call.args)
-
-        # Map tool names to actual Python functions
-        available_tools = {
-            "calculator": calculator,
-            "get_weather": get_weather
-        }
-
-        # Find the requested tool
-        tool = available_tools.get(function_call.name)
-
-
-        if tool is None:
-            raise ValueError(
-                f"Unknown tool requested: {function_call.name}"
-            )
-
-        # Execute the selected tool
-        result = tool(**function_call.args)
-
-        print("Tool result:", result)
-
-        # Add Gemini's tool-call response to conversation
+        # Gemini tool call response
         contents.append(response.candidates[0].content)
-        
-        # Add tool result to cpnversation
-        contents.append(
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part(
-                        function_response=types.FunctionResponse(
-                            name=function_call.name,
-                            response={
-                                "result": result
-                            }
-                        )
-                    )
-                ]
+
+        # Tool response collect
+        tool_response_parts = []
+
+        # Gemini Tool calls requested
+        for function_call in response.function_calls:
+
+            print("Tool requested:", function_call.name)
+            print("Arguments:", function_call.args)
+
+            # Find the requested tool
+            tool = available_tools.get(function_call.name)
+
+
+            if tool is None:
+                raise ValueError(
+                    f"Unknown tool requested: {function_call.name}"
+                )
+
+            try:
+
+                # Execute the selected tool
+                result = tool(**function_call.args)
+
+                print("Tool result:", result)
+
+                tool_response = {
+                    "result": result
+                }
+
+            except Exception as e:
+
+                print("Tool error:", str(e))
+
+                tool_response = {
+                    "error": str(e)
+                }
+
+            # Add tool response
+            tool_response_parts.append(
+                types.Part.from_function_response(
+                    name=function_call.name,
+                    response=tool_response,
+                )
             )
-        )
+            
+            # Add tool result to cpnversation
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=tool_response_parts
+                )
+            )
 
     else:
         # No more tools needed 

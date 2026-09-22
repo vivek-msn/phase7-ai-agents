@@ -14,6 +14,9 @@ def calculator(a: float, b: float, operation: str):
         if b == 0:
             raise ValueError("Cannot divide by zero")
         return a / b
+
+    elif operation == "percentage":
+        return (a*b) / 100
     
     else:
         raise ValueError(f"Unsupported operation: {operation}")
